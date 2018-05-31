@@ -1,5 +1,6 @@
 package hello;
 
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,9 +17,11 @@ public class HelloController {
     }
 
     @RequestMapping(method = RequestMethod.POST, path="/")
-    public String token(@RequestBody Map<String,String> input) {
-        System.out.println(input);
-        return input.get("challenge");
+    public Map<String, String> token(@RequestBody Map<String,String> input) {
+        System.out.println(input.get("challenge"));
+        input.remove("token");
+        input.remove("type");
+        return input;
 
     }
 }

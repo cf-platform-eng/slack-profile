@@ -3,5 +3,5 @@ applications:
 - name: slack-profile
   memory: 1G
   instances: 1
-  buildpack: java_buildpack_offline
+  buildpack: java_buildpack
   path: target/gs-spring-boot-0.1.0.jar

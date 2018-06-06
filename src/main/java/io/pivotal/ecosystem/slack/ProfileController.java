@@ -1,20 +1,27 @@
-package hello;
+package io.pivotal.ecosystem.slack;
 
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @RestController
 @Slf4j
-public class HelloController {
+@Data
+public class ProfileController {
 
-    @RequestMapping("/")
-    public String index() {
-        return "Greetings from Space!";
+    private SlackRepository slackRepository;
+    private String authToken;
+
+    public ProfileController(SlackRepository slackRepository, String authToken) {
+        setSlackRepository(slackRepository);
+        setAuthToken(authToken);
     }
 
     @RequestMapping(method = RequestMethod.POST, path = "/")
@@ -26,11 +33,19 @@ public class HelloController {
             input.remove("type");
             return input;
         }
+
         // assume this is event info
-        else {
-            log.info("got a change!!!! " + input.toString());
-            return null;
+        log.info("got a change!!!! " + input);
+        return null;
+    }
+
+    @RequestMapping("/users")
+    public List<Object> getUsers() {
+        Map<String, Object> users = slackRepository.getUsers(getAuthToken());
+        if (!users.containsKey("members")) {
+            return new ArrayList<>();
         }
 
+        return (List) users.get("members");
     }
 }

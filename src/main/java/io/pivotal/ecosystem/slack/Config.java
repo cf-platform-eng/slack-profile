@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class Config {
 
-    @Value("${slack.token}")
+    @Value("${SLACK_TOKEN}")
     private String slackToken;
 
     @Bean

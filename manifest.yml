@@ -4,4 +4,7 @@ applications:
   memory: 1G
   instances: 1
   buildpack: java_buildpack
-  path: target/gs-spring-boot-0.1.0.jar
+  path: target/slack-profile.jar
+  env:
+      SPRING_PROFILES_ACTIVE: cloud
+      SLACK_TOKEN: your-slack-token

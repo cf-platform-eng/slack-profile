@@ -2,12 +2,12 @@ package io.pivotal.ecosystem.slack;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.apache.commons.lang.WordUtils;
+import org.apache.commons.validator.routines.EmailValidator;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -47,5 +47,109 @@ public class ProfileController {
         }
 
         return (List) users.get("members");
+    }
+
+    @RequestMapping("/user/{id}")
+    public Map<String, Object> getUser(@PathVariable String id) {
+        return slackRepository.getUserInfo(getAuthToken(), id);
+    }
+
+    @RequestMapping("/userInfo/{id}")
+    public Map<String, String> getUserInfo(@PathVariable String id) {
+        Map<String, Object> info = getUser(id);
+        Map<String, String> ret = new HashMap<>();
+
+        if (info.containsKey("error")) {
+            ret.put(id, info.get("error").toString());
+            return ret;
+        }
+
+        Object userInfo = info.get("user");
+        if (userInfo == null) {
+            ret.put(id, "user information not available.");
+            return ret;
+        }
+
+        Map<String, Object> userMap = (Map<String, Object>) userInfo;
+        log.info("user: " + userInfo);
+
+        //a time zone
+        putIfNotNull(ret, "tz", userMap.get("tz"));
+
+        //a real name
+        putIfNotNull(ret, "realName", userMap.get("real_name"));
+
+        //profile
+        Object profile = userMap.get("profile");
+
+        if (profile != null) {
+            Map<String, Object> profileMap = (Map<String, Object>) profile;
+
+            //do I have an email address?
+            putIfNotNull(ret, "email", profileMap.get("email"));
+
+            //do I have a profile.title
+            putIfNotNull(ret, "title", profileMap.get("title"));
+
+            //a real name normalized
+            putIfNotNull(ret, "realNameNormalized", profileMap.get("real_name_normalized"));
+        }
+
+        ret.put("suggestedDisplayName", constructDisplayName(ret));
+
+        return ret;
+    }
+
+    private void putIfNotNull(Map<String, String> m, String key, Object o) {
+        if (o != null && o.toString().trim().length() > 0) {
+            m.put(key, o.toString());
+        }
+    }
+
+    String constructDisplayName(Map<String, String> userInfo) {
+        if(userInfo == null) {
+            return null;
+        }
+
+        //ideal name would be "realNameNormalized: title: company: tz"
+
+        String ret;
+        if (userInfo.containsKey("realNameNormalized")) {
+            ret = WordUtils.capitalize(userInfo.get("realNameNormalized").trim());
+        } else if (userInfo.containsKey("realName")) {
+            ret = WordUtils.capitalize(userInfo.get("realName").trim());
+        } else {
+            ret = userInfo.get("displayName");
+        }
+
+        if (userInfo.containsKey("title")) {
+            ret += ": " + WordUtils.capitalize(userInfo.get("title").trim());
+        }
+
+        String company = getCompanyFromEmail(userInfo);
+        if (company != null) {
+            ret += ": " + WordUtils.capitalize(company.trim());
+        }
+
+        if (userInfo.containsKey("tz")) {
+            ret += ": " + userInfo.get("tz");
+        }
+
+        return ret;
+    }
+
+    String getCompanyFromEmail(Map<String, String> userInfo) {
+        if (userInfo == null || !userInfo.containsKey("email")) {
+            return null;
+        }
+        String email = userInfo.get("email");
+
+        EmailValidator validator = EmailValidator.getInstance();
+        if (! validator.isValid(email)) {
+            return null;// is valid, do something
+        }
+
+        email = email.substring(email.indexOf('@') + 1, email.length());
+        return email.substring(0, email.indexOf("."));
     }
 }

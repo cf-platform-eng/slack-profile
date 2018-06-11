@@ -4,8 +4,13 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.WordUtils;
 import org.apache.commons.validator.routines.EmailValidator;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -49,10 +54,30 @@ public class ProfileController {
         return (List) users.get("members");
     }
 
-    @RequestMapping("/user/{id}")
+    @GetMapping("/user/{id}")
     public Map<String, Object> getUser(@PathVariable String id) {
         return slackRepository.getUserInfo(getAuthToken(), id);
     }
+
+    @PostMapping("/user/{id}")
+    public ResponseEntity<?> updateDisplayName(@PathVariable String id, @RequestBody String displayName) {
+        String s;
+        try {
+            s = URLEncoder.encode(displayName, StandardCharsets.UTF_8.toString());
+        } catch (UnsupportedEncodingException e) {
+            log.error("error processing display name.", e);
+            return null;
+        }
+
+        Map<String, Object> resp = slackRepository.updateDisplayName(getAuthToken(), id, s);
+        if ((!resp.containsKey(("ok")) || resp.get("ok").equals(Boolean.FALSE))) {
+            log.error("unable to process display name.", resp.get("error"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+
+        return ResponseEntity.ok().build();
+    }
+
 
     @RequestMapping("/userInfo/{id}")
     public Map<String, String> getUserInfo(@PathVariable String id) {
@@ -107,7 +132,7 @@ public class ProfileController {
     }
 
     String constructDisplayName(Map<String, String> userInfo) {
-        if(userInfo == null) {
+        if (userInfo == null) {
             return null;
         }
 
@@ -145,7 +170,7 @@ public class ProfileController {
         String email = userInfo.get("email");
 
         EmailValidator validator = EmailValidator.getInstance();
-        if (! validator.isValid(email)) {
+        if (!validator.isValid(email)) {
             return null;// is valid, do something
         }
 

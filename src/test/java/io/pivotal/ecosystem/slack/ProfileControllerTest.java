@@ -4,6 +4,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.HashMap;
@@ -117,5 +119,12 @@ public class ProfileControllerTest {
 
         userInfo.put("email", "foo.bar@bazz.com");
         assertEquals("Foo Bar: Poobah: Bazz: mars", profileController.constructDisplayName(userInfo));
+    }
+
+    @Test
+    public void testProfileUpdate() {
+        ResponseEntity<?> resp = profileController.updateDisplayName("UAZK3F2UV", "1234");
+        assertNotNull(resp);
+        assertEquals(HttpStatus.OK, resp.getStatusCode());
     }
 }

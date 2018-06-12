@@ -4,16 +4,13 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.WordUtils;
 import org.apache.commons.validator.routines.EmailValidator;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -23,101 +20,90 @@ public class ProfileController {
 
     private SlackRepository slackRepository;
     private String authToken;
+    private String verificationToken;
 
-    public ProfileController(SlackRepository slackRepository, String authToken) {
+    public ProfileController(SlackRepository slackRepository, String authToken, String verificationToken) {
         setSlackRepository(slackRepository);
         setAuthToken(authToken);
+        setVerificationToken(verificationToken);
     }
 
-    @RequestMapping(method = RequestMethod.POST, path = "/")
-    public Map<String, Object> token(@RequestBody Map<String, Object> input) {
+    @PostMapping("/")
+    public ResponseEntity<?> handleEvent(@RequestBody Map<String, Object> input) {
+        log.debug("token: " + input.get("token"));
 
-        if (input != null && input.containsKey("challenge")) {
-            log.info(input.get("challenge").toString());
+        //is this request really from slack?
+        if ((!input.containsKey("token")) || (!input.get("token").equals(getVerificationToken()))) {
+            log.warn("request does not contain a valid verification token.");
+            return ResponseEntity.ok().build();
+        }
+
+        //called by slack when first registering an app
+        if (input.containsKey("challenge")) {
             input.remove("token");
             input.remove("type");
-            return input;
+            return ResponseEntity.ok().body(input);
         }
 
-        // assume this is event info
-        log.info("got a change!!!! " + input);
-        return null;
-    }
+        // if it's not a challenge, it's an event we are listening for...
+        log.debug("ch-ch-ch-changes: " + input);
 
-    @RequestMapping("/users")
-    public List<Object> getUsers() {
-        Map<String, Object> users = slackRepository.getUsers(getAuthToken());
-        if (!users.containsKey("members")) {
-            return new ArrayList<>();
+        //don't get ourselves in a loop, only do an update if the display name needs to be changed.
+        //todo look at event_time to make sure we aren't looping?
+
+        Map<String, String> userInfo = getUserInfo(input);
+        String displayName = userInfo.get("display_name");
+        String suggestedDisplayName = constructDisplayName(userInfo);
+
+        if (!suggestedDisplayName.equals(displayName)) {
+            updateDisplayName(userInfo.get("id"), suggestedDisplayName);
+        } else {
+            log.info("display_name already set as suggested, no update needed.");
         }
-
-        return (List) users.get("members");
-    }
-
-    @GetMapping("/user/{id}")
-    public Map<String, Object> getUser(@PathVariable String id) {
-        return slackRepository.getUserInfo(getAuthToken(), id);
-    }
-
-    @PostMapping("/user/{id}")
-    public ResponseEntity<?> updateDisplayName(@PathVariable String id, @RequestBody String displayName) {
-        String s;
-        try {
-            s = URLEncoder.encode(displayName, StandardCharsets.UTF_8.toString());
-        } catch (UnsupportedEncodingException e) {
-            log.error("error processing display name.", e);
-            return null;
-        }
-
-        Map<String, Object> resp = slackRepository.updateDisplayName(getAuthToken(), id, s);
-        if ((!resp.containsKey(("ok")) || resp.get("ok").equals(Boolean.FALSE))) {
-            log.error("unable to process display name.", resp.get("error"));
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
-
         return ResponseEntity.ok().build();
     }
 
+    private void updateDisplayName(@PathVariable String id, @RequestBody String displayName) {
+        Map<String, Object> resp = slackRepository.updateDisplayName(getAuthToken(), id, displayName);
+        if (resp.containsKey("error")) {
+            log.error("unable to process display name.", resp);
+        }
+    }
 
-    @RequestMapping("/userInfo/{id}")
-    public Map<String, String> getUserInfo(@PathVariable String id) {
-        Map<String, Object> info = getUser(id);
+    //todo jsonpath?
+    @SuppressWarnings("unchecked")
+    Map<String, String> getUserInfo(Map<String, Object> input) {
+
         Map<String, String> ret = new HashMap<>();
-
-        if (info.containsKey("error")) {
-            ret.put(id, info.get("error").toString());
+        if (!input.containsKey("event")) {
             return ret;
         }
 
-        Object userInfo = info.get("user");
-        if (userInfo == null) {
-            ret.put(id, "user information not available.");
+        Map<String, Object> event = (Map<String, Object>) input.get("event");
+        if (!event.containsKey("user")) {
             return ret;
         }
 
-        Map<String, Object> userMap = (Map<String, Object>) userInfo;
-        log.info("user: " + userInfo);
+        Map<String, Object> user = (Map<String, Object>) event.get("user");
 
         //a time zone
-        putIfNotNull(ret, "tz", userMap.get("tz"));
+        putIfNotNull(ret, "tz", user.get("tz"));
 
         //a real name
-        putIfNotNull(ret, "realName", userMap.get("real_name"));
+        putIfNotNull(ret, "realName", user.get("real_name"));
 
         //profile
-        Object profile = userMap.get("profile");
-
-        if (profile != null) {
-            Map<String, Object> profileMap = (Map<String, Object>) profile;
+        if (user.containsKey("profile")) {
+            Map<String, Object> profile = (Map<String, Object>) user.get("profile");
 
             //do I have an email address?
-            putIfNotNull(ret, "email", profileMap.get("email"));
+            putIfNotNull(ret, "email", profile.get("email"));
 
             //do I have a profile.title
-            putIfNotNull(ret, "title", profileMap.get("title"));
+            putIfNotNull(ret, "title", profile.get("title"));
 
             //a real name normalized
-            putIfNotNull(ret, "realNameNormalized", profileMap.get("real_name_normalized"));
+            putIfNotNull(ret, "realNameNormalized", profile.get("real_name_normalized"));
         }
 
         ret.put("suggestedDisplayName", constructDisplayName(ret));
@@ -136,8 +122,7 @@ public class ProfileController {
             return null;
         }
 
-        //ideal name would be "realNameNormalized: title: company: tz"
-
+        //ideal name would be "realNameNormalized title company tz"
         String ret;
         if (userInfo.containsKey("realNameNormalized")) {
             ret = WordUtils.capitalize(userInfo.get("realNameNormalized").trim());
@@ -148,16 +133,16 @@ public class ProfileController {
         }
 
         if (userInfo.containsKey("title")) {
-            ret += ": " + WordUtils.capitalize(userInfo.get("title").trim());
+            ret += " " + WordUtils.capitalize(userInfo.get("title").trim());
         }
 
         String company = getCompanyFromEmail(userInfo);
         if (company != null) {
-            ret += ": " + WordUtils.capitalize(company.trim());
+            ret += " " + WordUtils.capitalize(company.trim());
         }
 
         if (userInfo.containsKey("tz")) {
-            ret += ": " + userInfo.get("tz");
+            ret += " " + userInfo.get("tz");
         }
 
         return ret;

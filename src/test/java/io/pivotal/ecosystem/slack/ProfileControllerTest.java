@@ -1,18 +1,18 @@
 package io.pivotal.ecosystem.slack;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.*;
+import static org.springframework.util.ResourceUtils.getFile;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -22,22 +22,8 @@ public class ProfileControllerTest {
     private ProfileController profileController;
 
     @Test
-    public void testGetUsers() {
-        List<Object> users = profileController.getUsers();
-        assertNotNull(users);
-        assertTrue(users.size() > 0);
-    }
-
-    @Test
-    public void testGetUser() {
-        Map<String, Object> user = profileController.getUser("UAZK3F2UV");
-        assertNotNull(user);
-        assertTrue(user.size() > 0);
-    }
-
-    @Test
-    public void testGetUserInfo() {
-        Map<String, String> user = profileController.getUserInfo("UAZK3F2UV");
+    public void testGetUserInfo() throws IOException {
+        Map<String, String> user = profileController.getUserInfo(fromJson("src/test/resources/event.json"));
         assertNotNull(user);
         assertTrue(user.size() > 0);
     }
@@ -121,10 +107,8 @@ public class ProfileControllerTest {
         assertEquals("Foo Bar: Poobah: Bazz: mars", profileController.constructDisplayName(userInfo));
     }
 
-    @Test
-    public void testProfileUpdate() {
-        ResponseEntity<?> resp = profileController.updateDisplayName("UAZK3F2UV", "1234");
-        assertNotNull(resp);
-        assertEquals(HttpStatus.OK, resp.getStatusCode());
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> fromJson(String fileName) throws IOException {
+        return (Map<String, Object>) new ObjectMapper().readValue(getFile(fileName), HashMap.class);
     }
 }

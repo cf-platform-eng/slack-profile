@@ -19,6 +19,14 @@ public class Config {
         return slackToken;
     }
 
+    @Value("${VERIFICATION_TOKEN}")
+    private String verificationToken;
+
+    @Bean
+    public String verificationToken() {
+        return verificationToken;
+    }
+
     @Bean
     public SlackRepository slackRepository() {
         return Feign.builder()

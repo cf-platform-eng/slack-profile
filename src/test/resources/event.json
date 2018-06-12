@@ -1,0 +1,61 @@
+{
+  "token": "fiudshfaiusdhfia",
+  "team_id": "GHGUYGU",
+  "api_app_id": "UYUYUVYUGY",
+  "event": {
+    "type": "user_change",
+    "user": {
+      "id": "YGUYGUYGUY",
+      "team_id": "YRDYYTCY",
+      "name": "jgordon",
+      "deleted": false,
+      "color": "4bbe2e",
+      "real_name": "Jared Gordon",
+      "tz": "America/New_York",
+      "tz_label": "Eastern Daylight Time",
+      "tz_offset": -14400,
+      "profile": {
+        "title": "Platform Engineer",
+        "phone": "",
+        "skype": "",
+        "real_name": "Jared Gordon",
+        "real_name_normalized": "Jared Gordon",
+        "display_name": "Crash",
+        "display_name_normalized": "Crash",
+        "fields": [],
+        "status_text": "",
+        "status_emoji": "",
+        "status_expiration": 0,
+        "avatar_hash": "gd11351d8629",
+        "first_name": "Jared",
+        "last_name": "Gordon",
+        "image_24": "https://secure.gravatar.com/avatar/d11351d8629d7bcf3dce02133a128821.jpg?s=24&d=https%3A%2F%2Fa.slack-edge.com%2F66f9%2Fimg%2Favatars%2Fava_0008-24.png",
+        "image_32": "https://secure.gravatar.com/avatar/d11351d8629d7bcf3dce02133a128821.jpg?s+32&d=https%3A%2F%2Fa.slack-edge.com%2F66f9%2Fimg%2Favatars%2Fava_0008-32.png",
+        "image_48": "https://secure.gravatar.com/avatar/d11351d8629d7bcf3dce02133a128821.jpg?s=48&d=https%3A%2F%2Fa.slack-edge.com%2F66f9%2Fimg%2Favatars%2Fava_0008-48.png",
+        "image_72": "https://secure.gravatar.com/avatar/d11351d8629d7bcf3dce02133a128821.jpg?s=72&d=https%3A%2F%2Fa.slack-edge.com%2F66f9%2Fimg%2Favatars%2Fava_0008-72.png",
+        "image_192": "https://secure.gravatar.com/avatar/d11351d8629d7bcf3dce02133a128821.jpg?s=192&d=https%3A%2F%2Fa.slack-edge.com%2F7fa9%2Fimg%2Favatars%2Fava_0008-192.png",
+        "image_512": "https://secure.gravatar.com/avatar/d11351d8629d7bcf3dce02133a128821.jpg?s=512&d=https%3A%2F%2Fa.slack-edge.com%2F7fa9%2Fimg%2Favatars%2Fava_0008-512.png",
+        "status_text_canonical": "",
+        "team": "GUYGIYJ",
+        "email": "jgordon@pivotal.io"
+      },
+      "is_admin": false,
+      "is_owner": false,
+      "is_primary_owner": false,
+      "is_restricted": false,
+      "is_ultra_restricted": false,
+      "is_bot": false,
+      "updated": 1528748512,
+      "is_app_user": false,
+      "locale": "en-US"
+    },
+    "cache_ts": "1528748512",
+    "event_ts": "1528748512.000082"
+  },
+  "type": "event_callback",
+  "event_id": "EvB6FC8KSA",
+  "event_time": "1528748512",
+  "authed_users": [
+    "YTCKTKCKHGCKHG"
+  ]
+}

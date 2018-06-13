@@ -133,16 +133,16 @@ public class ProfileController {
         }
 
         if (userInfo.containsKey("title")) {
-            ret += " " + WordUtils.capitalize(userInfo.get("title").trim());
+            ret += ", " + WordUtils.capitalize(userInfo.get("title").trim());
         }
 
         String company = getCompanyFromEmail(userInfo);
         if (company != null) {
-            ret += " " + WordUtils.capitalize(company.trim());
+            ret += ", " + WordUtils.capitalize(company.trim());
         }
 
         if (userInfo.containsKey("tz")) {
-            ret += " " + userInfo.get("tz");
+            ret += ", " + userInfo.get("tz");
         }
 
         return ret;

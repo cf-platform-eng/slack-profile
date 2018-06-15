@@ -1,10 +1,11 @@
 ---
 applications:
-- name: slack-profile
+- name: profile-monger
   memory: 1G
   instances: 1
   buildpack: java_buildpack
-  path: target/slack-profile.jar
+  path: target/profile-monger.jar
   env:
       SPRING_PROFILES_ACTIVE: cloud
-      SLACK_TOKEN: your-slack-token
+      SLACK_TOKEN: your-slack-oauth-token
+      VERIFICATION_TOKEN: your-slack-verification-token

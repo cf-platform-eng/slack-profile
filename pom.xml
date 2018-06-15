@@ -61,7 +61,7 @@
     </properties>
 
     <build>
-        <finalName>slack-profile</finalName>
+        <finalName>profile-monger</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

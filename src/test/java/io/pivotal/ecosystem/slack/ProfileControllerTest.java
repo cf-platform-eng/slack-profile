@@ -1,6 +1,7 @@
 package io.pivotal.ecosystem.slack;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ import static org.springframework.util.ResourceUtils.getFile;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
+@Slf4j
 public class ProfileControllerTest {
 
     @Autowired
@@ -98,13 +100,13 @@ public class ProfileControllerTest {
         assertEquals("Foo Bar", profileController.constructDisplayName(userInfo));
 
         userInfo.put("tz", "mars");
-        assertEquals("Foo Bar: mars", profileController.constructDisplayName(userInfo));
+        assertEquals("Foo Bar, mars", profileController.constructDisplayName(userInfo));
 
         userInfo.put("title", "poobah");
-        assertEquals("Foo Bar: Poobah: mars", profileController.constructDisplayName(userInfo));
+        assertEquals("Foo Bar, mars", profileController.constructDisplayName(userInfo));
 
         userInfo.put("email", "foo.bar@bazz.com");
-        assertEquals("Foo Bar: Poobah: Bazz: mars", profileController.constructDisplayName(userInfo));
+        assertEquals("Foo Bar, Bazz, mars", profileController.constructDisplayName(userInfo));
     }
 
     @SuppressWarnings("unchecked")

@@ -31,6 +31,28 @@ public class ProfileController {
     @PostMapping("/")
     public ResponseEntity<?> handleEvent(@RequestBody Map<String, Object> input) {
         log.debug("token: " + input.get("token"));
+        log.info("input: " + input);
+
+        //called by slack when first registering an app
+        if (input.containsKey("challenge")) {
+            log.info("slack challenge: " + input);
+            input.remove("token");
+            input.remove("type");
+            return ResponseEntity.ok().body(input);
+        }
+
+        Map<String, String> m = getUserInfo(input);
+        String id = m.get("id");
+        log.info("who? " + m);
+        if (
+                !"U1N7LKZ1U".equals(id) &&
+                        !"UB8CU9E7L".equals(id) &&
+                        !"UB1BW707P".equals(id) &&
+                        !"U89FUEYR2".equals(id) &&
+                        !"UB8CU9E7L".equals((id))
+                ) {
+            return ResponseEntity.ok().body(input);
+        }
 
         //is this request really from slack?
         if ((!input.containsKey("token")) || (!input.get("token").equals(getVerificationToken()))) {
@@ -38,15 +60,8 @@ public class ProfileController {
             return ResponseEntity.ok().build();
         }
 
-        //called by slack when first registering an app
-        if (input.containsKey("challenge")) {
-            input.remove("token");
-            input.remove("type");
-            return ResponseEntity.ok().body(input);
-        }
-
         // if it's not a challenge, it's an event we are listening for...
-        log.debug("ch-ch-ch-changes: " + input);
+        log.debug("ch-ch-changes: " + input);
 
         //don't get ourselves in a loop, only do an update if the display name needs to be changed.
         //todo look at event_time to make sure we aren't looping?
@@ -56,6 +71,7 @@ public class ProfileController {
         String suggestedDisplayName = constructDisplayName(userInfo);
 
         if (!suggestedDisplayName.equals(displayName)) {
+            log.info("updating display_name to: " + suggestedDisplayName);
             updateDisplayName(userInfo.get("id"), suggestedDisplayName);
         } else {
             log.info("display_name already set as suggested, no update needed.");
@@ -63,10 +79,12 @@ public class ProfileController {
         return ResponseEntity.ok().build();
     }
 
-    private void updateDisplayName(@PathVariable String id, @RequestBody String displayName) {
+    void updateDisplayName(@PathVariable String id, @RequestBody String displayName) {
         Map<String, Object> resp = slackRepository.updateDisplayName(getAuthToken(), id, displayName);
+        log.debug("update resp: " + resp);
+
         if (resp.containsKey("error")) {
-            log.error("unable to process display name.", resp);
+            log.error("unable to process display name:" + resp);
         }
     }
 
@@ -86,8 +104,11 @@ public class ProfileController {
 
         Map<String, Object> user = (Map<String, Object>) event.get("user");
 
+        //an id
+        putIfNotNull(ret, "id", user.get("id"));
+
         //a time zone
-        putIfNotNull(ret, "tz", user.get("tz"));
+        putIfNotNull(ret, "tz", user.get("tz_label"));
 
         //a real name
         putIfNotNull(ret, "realName", user.get("real_name"));
@@ -122,7 +143,7 @@ public class ProfileController {
             return null;
         }
 
-        //ideal name would be "realNameNormalized title company tz"
+        //ideal name would be "realNameNormalized title company tz" but we can only fit three of these things in...
         String ret;
         if (userInfo.containsKey("realNameNormalized")) {
             ret = WordUtils.capitalize(userInfo.get("realNameNormalized").trim());
@@ -132,9 +153,10 @@ public class ProfileController {
             ret = userInfo.get("displayName");
         }
 
-        if (userInfo.containsKey("title")) {
-            ret += ", " + WordUtils.capitalize(userInfo.get("title").trim());
-        }
+        //title shows up in a hover over the person, so excluding for now...
+//        if (userInfo.containsKey("title")) {
+//            ret += ", " + WordUtils.capitalize(userInfo.get("title").trim());
+//        }
 
         String company = getCompanyFromEmail(userInfo);
         if (company != null) {

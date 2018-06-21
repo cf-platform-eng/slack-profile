@@ -4,14 +4,11 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.WordUtils;
 import org.apache.commons.validator.routines.EmailValidator;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @Slf4j
@@ -41,7 +38,7 @@ public class ProfileController {
             return ResponseEntity.ok().body(input);
         }
 
-        Map<String, String> m = getUserInfo(input);
+        Map<String, String> m = getUserInfoFromEvent(input);
         String id = m.get("id");
         log.info("who? " + m);
         if (
@@ -66,7 +63,7 @@ public class ProfileController {
         //don't get ourselves in a loop, only do an update if the display name needs to be changed.
         //todo look at event_time to make sure we aren't looping?
 
-        Map<String, String> userInfo = getUserInfo(input);
+        Map<String, String> userInfo = getUserInfox(input);
         String displayName = userInfo.get("display_name");
         String suggestedDisplayName = constructDisplayName(userInfo);
 
@@ -79,8 +76,23 @@ public class ProfileController {
         return ResponseEntity.ok().build();
     }
 
-    void updateDisplayName(@PathVariable String id, @RequestBody String displayName) {
-        Map<String, Object> resp = slackRepository.updateDisplayName(getAuthToken(), id, displayName);
+    @GetMapping("/suggestions")
+    public ResponseEntity<TreeSet<String>> getSuggestedNames(@RequestParam(value="token") String token) {
+        if(token == null || ! getVerificationToken().equals(token)) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        List<Map<String, String>> userInfos = getUserInfos();
+        TreeSet<String> set = new TreeSet<>();
+        for (Map<String, String> user : userInfos) {
+            set.add(user.get("suggestedDisplayName"));
+        }
+
+        return new ResponseEntity<>(set, HttpStatus.OK);
+    }
+
+    void updateDisplayName(String id, String displayName) {
+        Map<String, Object> resp = getSlackRepository().updateDisplayName(getAuthToken(), id, displayName);
         log.debug("update resp: " + resp);
 
         if (resp.containsKey("error")) {
@@ -90,7 +102,7 @@ public class ProfileController {
 
     //todo jsonpath?
     @SuppressWarnings("unchecked")
-    Map<String, String> getUserInfo(Map<String, Object> input) {
+    Map<String, String> getUserInfoFromEvent(Map<String, Object> input) {
 
         Map<String, String> ret = new HashMap<>();
         if (!input.containsKey("event")) {
@@ -103,6 +115,15 @@ public class ProfileController {
         }
 
         Map<String, Object> user = (Map<String, Object>) event.get("user");
+
+        return getUserInfox(user);
+    }
+
+    //todo jsonpath?
+    @SuppressWarnings("unchecked")
+    Map<String, String> getUserInfox(Map<String, Object> user) {
+
+        Map<String, String> ret = new HashMap<>();
 
         //an id
         putIfNotNull(ret, "id", user.get("id"));
@@ -153,18 +174,15 @@ public class ProfileController {
             ret = userInfo.get("displayName");
         }
 
-        //title shows up in a hover over the person, so excluding for now...
-//        if (userInfo.containsKey("title")) {
-//            ret += ", " + WordUtils.capitalize(userInfo.get("title").trim());
-//        }
-
         String company = getCompanyFromEmail(userInfo);
-        if (company != null) {
+        //"gmail" is not a company...
+        if (company != null && (!company.toUpperCase().equals("GMAIL"))) {
             ret += ", " + WordUtils.capitalize(company.trim());
-        }
-
-        if (userInfo.containsKey("tz")) {
-            ret += ", " + userInfo.get("tz");
+        } else {
+            //add the user's title instead?
+            if (userInfo.containsKey("title")) {
+                ret += ", " + WordUtils.capitalize(userInfo.get("title").trim());
+            }
         }
 
         return ret;
@@ -183,5 +201,40 @@ public class ProfileController {
 
         email = email.substring(email.indexOf('@') + 1, email.length());
         return email.substring(0, email.indexOf("."));
+    }
+
+    public List<Map<String, String>> getUserInfos() {
+        List<Map<String, String>> userInfos = new ArrayList<>();
+
+        Map<String, Object> queryMap = new HashMap<>();
+        queryMap.put("limit", 200);
+
+        Map<String, Object> users;
+
+        int i = 0;
+        while (i < 10) {
+            users = getSlackRepository().getUsers(getAuthToken(), queryMap);
+            List<Object> members = (List<Object>) users.get("members");
+            for (Object member : members) {
+                userInfos.add(getUserInfox((Map<String, Object>) member));
+            }
+
+            //result will be paged, need to grab the cursor from the response and spin through rest of the pages
+            Map<String, Object> metatdata = (Map<String, Object>) users.get("response_metadata");
+            if (metatdata == null) {
+                break;
+            }
+
+            String cursor = metatdata.get("next_cursor").toString();
+            if (cursor == null || cursor.length() < 1) {
+                break;
+            }
+
+            queryMap.put("cursor", cursor);
+            i++;
+        }
+
+        log.info("iterated: " + i);
+        return userInfos;
     }
 }

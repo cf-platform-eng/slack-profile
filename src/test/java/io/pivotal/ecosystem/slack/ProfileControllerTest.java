@@ -10,7 +10,9 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
 import static org.junit.Assert.*;
 import static org.springframework.util.ResourceUtils.getFile;
@@ -23,9 +25,12 @@ public class ProfileControllerTest {
     @Autowired
     private ProfileController profileController;
 
+    @Autowired
+    private String verificationToken;
+
     @Test
     public void testGetUserInfo() throws IOException {
-        Map<String, String> user = profileController.getUserInfo(fromJson("src/test/resources/event.json"));
+        Map<String, String> user = profileController.getUserInfoFromEvent(fromJson("src/test/resources/event.json"));
         assertNotNull(user);
         assertTrue(user.size() > 0);
     }
@@ -100,13 +105,25 @@ public class ProfileControllerTest {
         assertEquals("Foo Bar", profileController.constructDisplayName(userInfo));
 
         userInfo.put("tz", "mars");
-        assertEquals("Foo Bar, mars", profileController.constructDisplayName(userInfo));
+        assertEquals("Foo Bar", profileController.constructDisplayName(userInfo));
 
         userInfo.put("title", "poobah");
-        assertEquals("Foo Bar, mars", profileController.constructDisplayName(userInfo));
+        assertEquals("Foo Bar, Poobah", profileController.constructDisplayName(userInfo));
 
         userInfo.put("email", "foo.bar@bazz.com");
-        assertEquals("Foo Bar, Bazz, mars", profileController.constructDisplayName(userInfo));
+        assertEquals("Foo Bar, Bazz", profileController.constructDisplayName(userInfo));
+    }
+
+    @Test
+    public void testGetSuggestedNames() {
+        TreeSet<String> set = profileController.getSuggestedNames(verificationToken).getBody();
+        assertNotNull(set);
+        assertTrue(set.size() > 0);
+
+        log.debug("unique users: " + set.size());
+        for (String s : set) {
+            log.debug(s);
+        }
     }
 
     @SuppressWarnings("unchecked")

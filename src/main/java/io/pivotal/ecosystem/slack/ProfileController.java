@@ -1,5 +1,10 @@
 package io.pivotal.ecosystem.slack;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.PathNotFoundException;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.WordUtils;
@@ -26,19 +31,26 @@ public class ProfileController {
     }
 
     @PostMapping("/")
-    public ResponseEntity<?> handleEvent(@RequestBody Map<String, Object> input) {
-        log.debug("token: " + input.get("token"));
-        log.info("input: " + input);
+    public ResponseEntity<?> handleEvent(@RequestBody String input) {
+        log.debug("input: " + input);
 
         //called by slack when first registering an app
-        if (input.containsKey("challenge")) {
+        try {
+            String challenge = JsonPath.parse(input).read("$.challenge");
             log.info("slack challenge: " + input);
-            input.remove("token");
-            input.remove("type");
-            return ResponseEntity.ok().body(input);
+            return ResponseEntity.ok().body(challenge);
+        } catch (PathNotFoundException pe) {
+            log.debug("not a slack challenge event.", pe);
         }
 
-        Map<String, String> m = getUserInfoFromEvent(input);
+        //for testing, only look at changes for our test group
+        Map<String, String> m;
+        try {
+            m = getUserInfo(getUserFromInput(input));
+        } catch (Exception e) {
+            log.error("error parsing response.", e);
+            return ResponseEntity.ok().build();
+        }
         String id = m.get("id");
         log.info("who? " + m);
         if (
@@ -52,8 +64,15 @@ public class ProfileController {
         }
 
         //is this request really from slack?
-        if ((!input.containsKey("token")) || (!input.get("token").equals(getVerificationToken()))) {
-            log.warn("request does not contain a valid verification token.");
+        try {
+            String token = JsonPath.parse(input).read("$.token");
+            log.debug("slack token: " + token);
+            if (!getVerificationToken().equals(token)) {
+                log.warn("invalid verification token.");
+                return ResponseEntity.ok().build();
+            }
+        } catch (PathNotFoundException pe) {
+            log.warn("request does not include a verification token.");
             return ResponseEntity.ok().build();
         }
 
@@ -62,10 +81,16 @@ public class ProfileController {
 
         //don't get ourselves in a loop, only do an update if the display name needs to be changed.
         //todo look at event_time to make sure we aren't looping?
+        Map<String, String> userInfo;
+        try {
+            userInfo = getUserInfo(getUserFromInput(input));
+        } catch (Exception e) {
+            log.error("error parsing response.", e);
+            return ResponseEntity.ok().build();
+        }
 
-        Map<String, String> userInfo = getUserInfox(input);
         String displayName = userInfo.get("display_name");
-        String suggestedDisplayName = constructDisplayName(userInfo);
+        String suggestedDisplayName = userInfo.get("suggestedDisplayName");
 
         if (!suggestedDisplayName.equals(displayName)) {
             log.info("updating display_name to: " + suggestedDisplayName);
@@ -77,8 +102,8 @@ public class ProfileController {
     }
 
     @GetMapping("/suggestions")
-    public ResponseEntity<TreeSet<String>> getSuggestedNames(@RequestParam(value="token") String token) {
-        if(token == null || ! getVerificationToken().equals(token)) {
+    public ResponseEntity<TreeSet<String>> getSuggestedNames(@RequestParam(value = "token") String token) {
+        if (!getVerificationToken().equals(token)) {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
 
@@ -100,62 +125,58 @@ public class ProfileController {
         }
     }
 
-    //todo jsonpath?
-    @SuppressWarnings("unchecked")
-    Map<String, String> getUserInfoFromEvent(Map<String, Object> input) {
-
-        Map<String, String> ret = new HashMap<>();
-        if (!input.containsKey("event")) {
-            return ret;
-        }
-
-        Map<String, Object> event = (Map<String, Object>) input.get("event");
-        if (!event.containsKey("user")) {
-            return ret;
-        }
-
-        Map<String, Object> user = (Map<String, Object>) event.get("user");
-
-        return getUserInfox(user);
+    String getUserFromInput(String input) throws Exception {
+        return jsonSubString((jsonSubString(input, "event")), "user");
     }
 
-    //todo jsonpath?
-    @SuppressWarnings("unchecked")
-    Map<String, String> getUserInfox(Map<String, Object> user) {
+    private String jsonSubString(String json, String key) throws Exception {
+        TypeReference t = new TypeReference<Map<String, Object>>() {
+        };
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> m = mapper.readValue(json, t);
+        return mapper.writeValueAsString(m.get(key));
+    }
+
+    Map<String, String> getUserInfo(String userJson) {
 
         Map<String, String> ret = new HashMap<>();
 
         //an id
-        putIfNotNull(ret, "id", user.get("id"));
+        putIfNotNull(ret, userJson, "id", "$.id");
 
-        //a time zone
-        putIfNotNull(ret, "tz", user.get("tz_label"));
+        //a time zone: often missing..
+//        putIfNotNull(ret, userJson, "tz_label", "$.tz_label");
 
         //a real name
-        putIfNotNull(ret, "realName", user.get("real_name"));
+        putIfNotNull(ret, userJson, "realName", "$.profile.real_name");
 
-        //profile
-        if (user.containsKey("profile")) {
-            Map<String, Object> profile = (Map<String, Object>) user.get("profile");
+        //current display name
+        putIfNotNull(ret, userJson, "display_name", "$.profile.display_name");
 
-            //do I have an email address?
-            putIfNotNull(ret, "email", profile.get("email"));
+        //do I have an email address?
+        putIfNotNull(ret, userJson, "email", "$.profile.email");
 
-            //do I have a profile.title
-            putIfNotNull(ret, "title", profile.get("title"));
+        //do I have a profile.title
+        putIfNotNull(ret, userJson, "title", "$.profile.title");
 
-            //a real name normalized
-            putIfNotNull(ret, "realNameNormalized", profile.get("real_name_normalized"));
-        }
+        //a real name normalized
+        putIfNotNull(ret, userJson, "realNameNormalized", "$.profile.real_name_normalized");
 
         ret.put("suggestedDisplayName", constructDisplayName(ret));
 
         return ret;
     }
 
-    private void putIfNotNull(Map<String, String> m, String key, Object o) {
-        if (o != null && o.toString().trim().length() > 0) {
-            m.put(key, o.toString());
+    private void putIfNotNull(Map<String, String> m, String input, String key, String jpath) {
+        String s;
+        try {
+            s = JsonPath.parse(input).read(jpath);
+        } catch (Throwable t) {
+            log.info("error parsing json: key: " + key + " input: " + input);
+            return;
+        }
+        if (s != null && s.trim().length() > 0) {
+            m.put(key, s);
         }
     }
 
@@ -203,29 +224,28 @@ public class ProfileController {
         return email.substring(0, email.indexOf("."));
     }
 
-    public List<Map<String, String>> getUserInfos() {
+    List<Map<String, String>> getUserInfos() {
         List<Map<String, String>> userInfos = new ArrayList<>();
 
         Map<String, Object> queryMap = new HashMap<>();
         queryMap.put("limit", 200);
 
-        Map<String, Object> users;
+        Object usersJson;
 
         int i = 0;
         while (i < 10) {
-            users = getSlackRepository().getUsers(getAuthToken(), queryMap);
-            List<Object> members = (List<Object>) users.get("members");
+            usersJson = getSlackRepository().getUsers(getAuthToken(), queryMap);
+
+            List<Object> members = JsonPath.parse(usersJson).read("$.members");
             for (Object member : members) {
-                userInfos.add(getUserInfox((Map<String, Object>) member));
+                try {
+                    userInfos.add(getUserInfo(new ObjectMapper().writeValueAsString(member)));
+                } catch (JsonProcessingException e) {
+                    log.error("error processing json input: " + member, e);
+                }
             }
 
-            //result will be paged, need to grab the cursor from the response and spin through rest of the pages
-            Map<String, Object> metatdata = (Map<String, Object>) users.get("response_metadata");
-            if (metatdata == null) {
-                break;
-            }
-
-            String cursor = metatdata.get("next_cursor").toString();
+            String cursor = JsonPath.parse(usersJson).read("$.response_metadata.next_cursor");
             if (cursor == null || cursor.length() < 1) {
                 break;
             }

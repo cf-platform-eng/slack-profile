@@ -1,21 +1,20 @@
 package io.pivotal.ecosystem.slack;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.util.StreamUtils;
 
-import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
 import static org.junit.Assert.*;
-import static org.springframework.util.ResourceUtils.getFile;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -29,10 +28,12 @@ public class ProfileControllerTest {
     private String verificationToken;
 
     @Test
-    public void testGetUserInfo() throws IOException {
-        Map<String, String> user = profileController.getUserInfoFromEvent(fromJson("src/test/resources/event.json"));
+    public void testGetUserFromInput() throws Exception {
+        String s = profileController.getUserFromInput(getContents("event.json"));
+        assertNotNull(s);
+        Map<String, String> user = profileController.getUserInfo(s);
         assertNotNull(user);
-        assertTrue(user.size() > 0);
+        assertEquals(7, user.size());
     }
 
     @Test
@@ -126,8 +127,7 @@ public class ProfileControllerTest {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> fromJson(String fileName) throws IOException {
-        return (Map<String, Object>) new ObjectMapper().readValue(getFile(fileName), HashMap.class);
+    private String getContents(String fileName) throws Exception {
+        return StreamUtils.copyToString(new ClassPathResource(fileName).getInputStream(), Charset.defaultCharset());
     }
 }

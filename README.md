@@ -35,7 +35,7 @@ browse to https://profile-monger.cfapps.io/suggestions?token=verifcation_token
 1. pull down and save the suggested names
 
 ```
-curl https://profile-monger.cfapps.io/suggestions?token=verifcation_token > names.json
+curl 'https://profile-monger.cfapps.io/suggestions?token=verifcation_token' > names.json
 ```
 
 2. review the names, looks good?
@@ -43,7 +43,7 @@ curl https://profile-monger.cfapps.io/suggestions?token=verifcation_token > name
 3. if so post the list
 
 ```
-curl -d "@names.json" -X POST https://profile-monger.cfapps.io/bulk?token=verifcation_token;source=suggestedDisplayName > results.json
+curl -d "@names.json" -H "Content-Type: application/json" -X POST 'https://profile-monger.cfapps.io/bulkUpdate?token=your-token&name_source=suggestedDisplayName' > results.json
 ```
 
 4. review the results
@@ -51,6 +51,6 @@ curl -d "@names.json" -X POST https://profile-monger.cfapps.io/bulk?token=verifc
 5. no good? to rollback:
 
 ```
-curl -d "@names.json" -X POST https://profile-monger.cfapps.io/bulk?token=verifcation_token;source=display_name > results.json
+curl -d "@names.json" -H "Content-Type: application/json" -X POST 'https://profile-monger.cfapps.io/bulkUpdate?token=your-token&name_source=display_name' > results.json
 ```
 

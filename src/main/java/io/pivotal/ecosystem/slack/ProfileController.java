@@ -13,7 +13,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @Slf4j
@@ -102,18 +105,46 @@ public class ProfileController {
     }
 
     @GetMapping("/suggestions")
-    public ResponseEntity<TreeSet<String>> getSuggestedNames(@RequestParam(value = "token") String token) {
+    public ResponseEntity<Map<String, Object>> getSuggestedNames(@RequestParam(value = "token") String token) {
         if (!getVerificationToken().equals(token)) {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
 
         List<Map<String, String>> userInfos = getUserInfos();
-        TreeSet<String> set = new TreeSet<>();
+        Map<String, Object> suggestions = new HashMap<>();
         for (Map<String, String> user : userInfos) {
-            set.add(user.get("suggestedDisplayName"));
+            Map<String, Object> m = new HashMap<>();
+            m.put("display_name", user.get("display_name"));
+            m.put("suggestedDisplayName", user.get("suggestedDisplayName"));
+            suggestions.put(user.get("id"), m);
         }
 
-        return new ResponseEntity<>(set, HttpStatus.OK);
+        return new ResponseEntity<>(suggestions, HttpStatus.OK);
+    }
+
+    @PostMapping("/bulkUpdate")
+    public ResponseEntity<?> bulkUpdate(@RequestParam(value = "token") String token, @RequestParam(value = "source") String source, Map<String, Object> json) {
+        if (!getVerificationToken().equals(token)) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        if (!"display_name".equals(source) && !"suggestedDisplayName".equals(source)) {
+            return new ResponseEntity<>("source should be display_name or suggestedDisplayName", HttpStatus.BAD_REQUEST);
+        }
+
+        Map<String, Object> ret = new HashMap<>();
+        for (String id : json.keySet()) {
+            String name;
+            if ("display_name".equals(source)) {
+                name = ((Map) json.get(id)).get("display_name").toString();
+            } else {
+                name = ((Map) json.get(id)).get("suggestedDisplayName").toString();
+            }
+
+            updateDisplayName(id, name);
+            ret.put(id, name);
+        }
+        return new ResponseEntity<>(ret, HttpStatus.OK);
     }
 
     void updateDisplayName(String id, String displayName) {

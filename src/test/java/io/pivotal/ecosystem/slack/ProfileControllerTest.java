@@ -1,5 +1,7 @@
 package io.pivotal.ecosystem.slack;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -117,14 +119,24 @@ public class ProfileControllerTest {
 
     @Test
     public void testGetSuggestedNames() {
-        TreeSet<String> set = profileController.getSuggestedNames(verificationToken).getBody();
-        assertNotNull(set);
-        assertTrue(set.size() > 0);
+        Map<String, Object> m = profileController.getSuggestedNames(verificationToken).getBody();
+        assertNotNull(m);
+        assertTrue(m.size() > 0);
 
-        log.debug("unique users: " + set.size());
-        for (String s : set) {
+        log.debug("unique users: " + m.size());
+        for (String s : m.keySet()) {
             log.debug(s);
         }
+    }
+
+    @Test
+    public void testBulkUpdate() throws Exception {
+        String names = getContents("names.json");
+        TypeReference t = new TypeReference<Map<String, Object>>() {};
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> m = mapper.readValue(names, t);
+        Object ret = profileController.bulkUpdate(verificationToken, "suggestedDisplayName", m).getBody();
+        assertNotNull(ret);
     }
 
     private String getContents(String fileName) throws Exception {

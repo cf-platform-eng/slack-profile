@@ -1,8 +1,7 @@
 package io.pivotal.ecosystem.slack;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,13 +13,17 @@ import org.springframework.util.StreamUtils;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeSet;
 
 import static org.junit.Assert.*;
 
+
+/**
+ * to run this test, edit application.properties and add in your slack tokens.
+ */
 @RunWith(SpringRunner.class)
 @SpringBootTest
 @Slf4j
+@Ignore
 public class ProfileControllerTest {
 
     @Autowired
@@ -132,10 +135,7 @@ public class ProfileControllerTest {
     @Test
     public void testBulkUpdate() throws Exception {
         String names = getContents("names.json");
-        TypeReference t = new TypeReference<Map<String, Object>>() {};
-        ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> m = mapper.readValue(names, t);
-        Object ret = profileController.bulkUpdate(verificationToken, "suggestedDisplayName", m).getBody();
+        Object ret = profileController.bulkUpdate(verificationToken, "suggestedDisplayName", names).getBody();
         assertNotNull(ret);
     }
 

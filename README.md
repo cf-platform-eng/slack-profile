@@ -25,6 +25,9 @@ space:          jgordon
 profile-monger       started           1/1         1G       1G     profile-monger.cfapps.io
 ```
 
+## How to test it
+Tests are ignored. To run them, add your tokens to the test application.properties file, and remove the @ignore tags on the tests.
+
 ## How to use it
 Once deployed the app will watch for profile updates in the workplace where it is installed. If a profile is updated it will check the user's display name and update it as configured by the application.
 

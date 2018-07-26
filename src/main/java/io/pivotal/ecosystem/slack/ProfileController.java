@@ -10,9 +10,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.WordUtils;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -56,15 +58,6 @@ public class ProfileController {
         }
         String id = m.get("id");
         log.info("who? " + m);
-        if (
-                !"U1N7LKZ1U".equals(id) &&
-                        !"UB8CU9E7L".equals(id) &&
-                        !"UB1BW707P".equals(id) &&
-                        !"U89FUEYR2".equals(id) &&
-                        !"UB8CU9E7L".equals((id))
-                ) {
-            return ResponseEntity.ok().body(input);
-        }
 
         //is this request really from slack?
         try {
@@ -105,7 +98,9 @@ public class ProfileController {
     }
 
     @GetMapping("/suggestions")
-    public ResponseEntity<Map<String, Object>> getSuggestedNames(@RequestParam(value = "token") String token) {
+    public ResponseEntity<Map<String, Object>> getSuggestedNames(
+            @RequestParam(value = "token") String token) {
+
         if (!getVerificationToken().equals(token)) {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
@@ -122,23 +117,36 @@ public class ProfileController {
         return new ResponseEntity<>(suggestions, HttpStatus.OK);
     }
 
-    @PostMapping("/bulkUpdate")
-    public ResponseEntity<?> bulkUpdate(@RequestParam(value = "token") String token, @RequestParam(value = "source") String source, Map<String, Object> json) {
+    @PostMapping(value = "/bulkUpdate", produces = MediaType.APPLICATION_JSON_UTF8_VALUE, consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    public ResponseEntity<?> bulkUpdate(
+            @RequestParam(value="token") String token,
+            @RequestParam(value="name_source") String name_source,
+            @RequestBody String json) {
+
         if (!getVerificationToken().equals(token)) {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
 
-        if (!"display_name".equals(source) && !"suggestedDisplayName".equals(source)) {
+        if (!"display_name".equals(name_source) && !"suggestedDisplayName".equals(name_source)) {
             return new ResponseEntity<>("source should be display_name or suggestedDisplayName", HttpStatus.BAD_REQUEST);
         }
 
+        TypeReference t = new TypeReference<Map<String, Object>>() {};
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> m;
+        try {
+            m = mapper.readValue(json, t);
+        } catch (IOException e) {
+            return new ResponseEntity<>("invalid request body: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+
         Map<String, Object> ret = new HashMap<>();
-        for (String id : json.keySet()) {
+        for (String id : m.keySet()) {
             String name;
-            if ("display_name".equals(source)) {
-                name = ((Map) json.get(id)).get("display_name").toString();
+            if ("display_name".equals(name_source)) {
+                name = ((Map) m.get(id)).get("display_name").toString();
             } else {
-                name = ((Map) json.get(id)).get("suggestedDisplayName").toString();
+                name = ((Map) m.get(id)).get("suggestedDisplayName").toString();
             }
 
             updateDisplayName(id, name);

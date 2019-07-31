@@ -9,9 +9,9 @@ A slack app that can be used to munge slack profiles so they show up specific wa
 ## Installation
 1. Follow the steps for installing slacks apps, found here: https://api.slack.com/apps. You will need to use a "user token" for now. When slack stabilizes workspace tokens in the future they would be the way to go. The user who installs the app needs to be at a higher security level than the users they will be editing.
 
-2. Enable event subscriptions, subscribe to the user_change event
+2. On "OAuth & Permissions", add the `users.profile:write` and `users:read.email` scopes.
 
-3. Add the user.profile.write and user.email.read scopes
+3. Enable event subscriptions, subscribe to the `user_change` event. Enter the base URL for this app as the Request URL (e.g., https://profile-monger.cfapps.io/).
 
 4. Edit the manifest to include your slack oauth and validation tokens
 
